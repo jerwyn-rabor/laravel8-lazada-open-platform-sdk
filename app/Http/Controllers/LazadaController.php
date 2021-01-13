@@ -7,7 +7,7 @@ use App\Plugin\Lazada\lazop\LazopRequest;
 
 class LazadaController extends Controller
 {
-    public function index() {
+    public function index(\App\Services\GoogleSheet $googleSheet) {
 
         $url = config('lazada.api.url');
         $appkey = config('lazada.api.appkey');
@@ -22,10 +22,40 @@ class LazadaController extends Controller
         $request->addApiParam('limit','10');
         $request->addApiParam('options','1');
 
-        // CONVERT STRING TO JSON DATA
+         // CONVERT STRING TO JSON DATA
         $result = json_decode($c->execute($request, $accessToken), true);
+        
+        // PRE-FORMAT LAZADA DATA
+        $products = collect($result["data"]["products"]) ?? [];
+        
+        $final_products = $this->prepGoogleSheetData($products);
 
-        return $result;
+        $googleSheet->saveDataToSheet($final_products);
+        dd($googleSheet->readGoogleSheet());
+    }
 
+     public function prepGoogleSheetData($products) {
+
+        $values = [];
+
+        foreach($products as $product) {
+
+            // IF YOU WANT TO SEE THE STRUCTURE OF DATA
+            // dd($product);
+
+            $temp = [];
+            $temp[] = $product["attributes"]["name"] ?? '';
+            $temp[] = $product["attributes"]["short_description"] ?? '';
+            $temp[] = $product["attributes"]["description"] ?? '';
+            $temp[] = $product["attributes"]["material_filter"] ?? '';
+            $temp[] = $product["attributes"]["fa_pattern"] ?? '';
+            $temp[] = $product["attributes"]["brand"] ?? '';
+            $temp[] = $product["attributes"]["warranty_type"] ?? '';
+
+            // PUSH FORMAT TO VALUES
+            $values[] = $temp;
+        };
+        
+        return $values;
     }
 }
